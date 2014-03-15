@@ -44,8 +44,9 @@ func main()(){
 			err =json.Unmarshal(buf2[:rlen],&msgIn)
 			if err != nil{
 				log.Printf("Error: %v",err)
+			}else{
+				printToScreen(msgIn)
 			}
-			printToScreen(msgIn)
 		}
 	}()
 	for {
@@ -53,7 +54,7 @@ func main()(){
 		msg := getInputFromUser()
 		buf,err =json.Marshal(msg)
 		if err!=nil {
-			fmt.Printf("Error: %v", err)
+			log.Printf("Error3: %v", err)
 		}
 		con.Write(buf)
 
