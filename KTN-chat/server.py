@@ -27,17 +27,24 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         # Wait for data from the client
         while True:
             print('Waiting for data')
-            data = self.connection.recv(1024)
-            # Check if the data exists
-            # (recv could have returned due to a disconnect)
-            if data:
-                print(data.decode("utf-8"))
-                self.requestHandler(data)
-                # print data
-                # Return the string in uppercase
-                # self.connection.sendall(data.upper())
-            else:
-                print('Client disconnected!')
+            try:
+                data = self.connection.recv(1024)
+                # Check if the data exists
+                # (recv could have returned due to a disconnect)
+                if data:
+                    print(data.decode("utf-8"))
+                    self.requestHandler(data)
+                    # print data
+                    # Return the string in uppercase
+                    # self.connection.sendall(data.upper())
+                else:
+                    print('Client disconnected!')
+                    break
+            except:
+                print('Lost connection to client!')
+                connKey = self.checkIfLoggedIn()
+                if connKey != '$NotInOnlineList$':
+                    del onlineClients[connKey]
                 break
 
     def requestHandler(self, data):
@@ -77,7 +84,7 @@ class ClientHandler(SocketServer.BaseRequestHandler):
             valUser = self.validUsername(username)
             print("Valuser = ", valUser)
             if valUser == 1:
-                data = json.dumps({'response': 'login', 'username': username, 'messages': 'ingenting'})
+                data = json.dumps({'response': 'login', 'username': username, 'messages': messages})
                 print("add client!")  
                 onlineClients[username] = self.connection
                 print(onlineClients.keys())
@@ -93,10 +100,12 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         if self.checkIfLoggedIn() != '$NotInOnlineList$':
             #print("Logged in!")
             if 'message' in dict1:
-                print("Message is:")
-                msg = json.dumps({'response': 'message', 'message': dict1['message']})
+                print("Message is:"+ dict1['message'])
+                msg = json.dumps({'response': 'message','message':dict1['message']})
                 print(msg)
+                messages += dict1['message']
                 for conn in onlineClients.values():
+                    print(conn)
                     conn.sendall(msg.encode())
         else:
             msg = json.dumps({'response': 'message', 'error': 'You are not logged in!'})
@@ -108,6 +117,7 @@ class ClientHandler(SocketServer.BaseRequestHandler):
                 if self.connection == v:
                     return k
         return '$NotInOnlineList$'
+
 
     def handleLogoutRequest(self):
         user = self.checkIfLoggedIn()
@@ -150,7 +160,7 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 
 onlineClients = {}
-
+messages = ""
 if __name__ == "__main__":
     HOST = ''#78.91.29.196'
     PORT = 9999

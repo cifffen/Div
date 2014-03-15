@@ -42,8 +42,11 @@ func main()(){
 				fmt.Printf("Error: %v", err)
 	        }
 			err =json.Unmarshal(buf2[:rlen],&msgIn)
+			fmt.Printf("%v\n",msgIn)
+			fmt.Printf("%v\n",buf2[:rlen])
 			if err != nil{
 				log.Printf("Error: %v",err)
+				os.Exit(1)
 			}else{
 				printToScreen(msgIn)
 			}
@@ -111,9 +114,9 @@ func printToScreen(msgIn map[string] interface{}){
 			case logout:
 				if un, unPres := msgIn[username]; unPres{
 					if err, lgoErr := msgIn[error]; lgoErr{
-						fmt.Printf("User:%s %s \n", un, err)
+						fmt.Printf("User %s %s \n", un, err)
 					} else{
-						fmt.Printf("User: %s has logged out. \n", un)
+						fmt.Printf("User %s has logged out. \n", un)
 					}
 				}
 		}
