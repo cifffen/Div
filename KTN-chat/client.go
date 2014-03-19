@@ -7,6 +7,8 @@ import(
 	"time"
 	"os"
 	"log"
+	"bufio"
+	"strings"
 )
 const (
 	RECV_BUF_LEN = 1024
@@ -42,8 +44,6 @@ func main()(){
 				fmt.Printf("Error: %v", err)
 	        }
 			err =json.Unmarshal(buf2[:rlen],&msgIn)
-			fmt.Printf("%v\n",msgIn)
-			fmt.Printf("%v\n",buf2[:rlen])
 			if err != nil{
 				log.Printf("Error: %v",err)
 				os.Exit(1)
@@ -64,20 +64,24 @@ func main()(){
 	}
 }
 func getInputFromUser() (msg map[string]string){
+	reader := bufio.NewReader(os.Stdin)
 	var fromUser string
 	fmt.Printf(": ")
-	_,err:=fmt.Scanf("%s\n",&fromUser)
+    	fromUser, err := reader.ReadString('\r')
+	fromUser = strings.TrimSuffix(fromUser,"\r")
+	fromUser = strings.TrimPrefix(fromUser,"\n")
 	if err != nil {
 		fmt.Printf("Error: %v", err)
 	}
-	
 	msg =make(map[string]string)
 	msg[request]=message
 	switch fromUser {
 		case login:
 			msg[request]=login
-			fmt.Printf("Username: ")
-			_,err:=fmt.Scanf("%s\n",&fromUser)
+			fmt.Printf("Username:")
+			fromUser, err := reader.ReadString('\r')
+			fromUser = strings.TrimSuffix(fromUser,"\r")
+			fromUser = strings.TrimPrefix(fromUser,"\n")
 			if err != nil {
 				fmt.Printf("Error: %v", err)
 			}
