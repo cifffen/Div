@@ -6,15 +6,18 @@ for implementing the chat server
 import SocketServer
 import re
 import json
-#from MessageWorker import ReceiveMessageWorker
+import socket
+import sys
 '''
+
 The RequestHandler class for our server.
 
 It is instantiated once per connection to the server, and must
 override the handle() method to implement communication to the
 client.
 '''
-
+reload(sys) 
+sys.setdefaultencoding('utf-8') 
 class ClientHandler(SocketServer.BaseRequestHandler):
     def handle(self):
             # Get a reference to the socket object
@@ -26,20 +29,21 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         print('Client connected @' + self.ip + ':' + str(self.port))
         # Wait for data from the client
         while True:
-            print('Waiting for data')
             try:
                 data = self.connection.recv(1024)
                 # Check if the data exists
                 # (recv could have returned due to a disconnect)
                 if data:
-                    print(data.decode("utf-8"))
                     self.requestHandler(data)
-                    # print data
                     # Return the string in uppercase
                     # self.connection.sendall(data.upper())
                 else:
                     print('Client disconnected!')
+                    #handle disconnected client here instead?
                     break
+            except socket.timeout:
+                print 'Socket timeout'
+                continue
             except:
                 print('Lost connection to client!')
                 connKey = self.checkIfLoggedIn()
@@ -48,44 +52,27 @@ class ClientHandler(SocketServer.BaseRequestHandler):
                 break
 
     def requestHandler(self, data):
-        #try:
         dict1 = json.loads(data.decode("utf-8"))
-        #print(dict1)
         if 'request' in dict1:
             request = dict1['request']
-            #print('Request: ' + request)
             '''
-            if request in self.requestTypes:
-                print(request + ' is in requestTypes')
-                self.requestTypes[request](dict1)
-            '''
+if request in self.requestTypes:
+print(request + ' is in requestTypes')
+self.requestTypes[request](dict1)
+'''
             if request == 'login':
-                #if 'username' in dict1.keys():
-                print("login!")
-                #    print(dict1['username'])
                 self.handleLoginRequest(dict1)
             elif request == 'message':
-                print("New message!")
                 self.handleMessageRequest(dict1)
             elif request == 'logout':
-                print("logout!")
                 self.handleLogoutRequest()
-
-        #except: 
-            #data = json.dumps({'response': 'login', 'error': 'Something is wrong!', 'username': 'jau'})
-            #self.connection.sendall(data)
-         #   print('Invalid request')
-            
     def handleLoginRequest(self, dict1):
-        #print(dict1)
+        global messages
         if 'username' in dict1:
-            print('username: ' + dict1['username'])
             username = dict1['username']
             valUser = self.validUsername(username)
-            print("Valuser = ", valUser)
             if valUser == 1:
                 data = json.dumps({'response': 'login', 'username': username, 'messages': messages})
-                print("add client!")  
                 onlineClients[username] = self.connection
                 print(onlineClients.keys())
             elif valUser == 0:
@@ -93,24 +80,21 @@ class ClientHandler(SocketServer.BaseRequestHandler):
             else:
                 data = json.dumps({'response': 'login', 'error': 'Name already taken!', 'username': username})
             self.connection.sendall(data.encode())
-            print("send!")
         return
 
     def handleMessageRequest(self, dict1):
+        global messages
         if self.checkIfLoggedIn() != '$NotInOnlineList$':
-            #print("Logged in!")
             if 'message' in dict1:
-                print("Message is:"+ dict1['message'])
                 msg = json.dumps({'response': 'message','message':dict1['message']})
-                print(msg)
-                messages += dict1['message']
+                toLog = dict1['message'] + '\n'
+                messages += toLog
                 for conn in onlineClients.values():
-                    print(conn)
                     conn.sendall(msg.encode())
         else:
             msg = json.dumps({'response': 'message', 'error': 'You are not logged in!'})
             self.connection.sendall(msg.encode())
-        
+    
     def checkIfLoggedIn(self):
         for k, v in onlineClients.items():
             if v:
@@ -124,15 +108,13 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         if user != '$NotInOnlineList$':
             msg = json.dumps({'response': 'logout', 'username': user})
             del onlineClients[user]
-            print('User ' + user + ' deleted!')
-            print(onlineClients.keys())
         else:
             msg = json.dumps({'response': 'logout','error': 'Not logged in!', 'username': user})
         self.connection.sendall(msg.encode())
 
 
     def validUsername(self, username):
-        if re.match(r'\w+$', username):
+        if re.match(r'\w+$', username,re.UNICODE):
             # valid username! see: http://docs.python.org/2/library/re.html#search-vs-match [ctrl] + f: When the LOCALE and UNICODE flags are not specified, matches any alphanumeric character and the underscore;
                 if username not in onlineClients:
                     #username not taken, return true!
@@ -142,11 +124,11 @@ class ClientHandler(SocketServer.BaseRequestHandler):
                     return -1
         return 0 #username contains invalid characters
 '''
-    requestTypes = {    #Holds the different requests a client can send
-        'login'     : handleLoginRequest(dict),
-        'message'   : handleMessageRequest,
-        'logout'    : handleLogoutRequest,
-     }
+requestTypes = { #Holds the different requests a client can send
+'login' : handleLoginRequest(dict),
+'message' : handleMessageRequest,
+'logout' : handleLogoutRequest,
+}
 
 '''
 '''
@@ -161,18 +143,14 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 onlineClients = {}
 messages = ""
+
 if __name__ == "__main__":
     HOST = ''#78.91.29.196'
     PORT = 9999
-
 
     # Create the server, binding to localhost on port 9999
     server = ThreadedTCPServer((HOST, PORT), ClientHandler)
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
     server.serve_forever()
-
-
-
-
 
