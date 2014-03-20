@@ -7,17 +7,20 @@ import SocketServer
 import re
 import json
 import socket
-#from MessageWorker import ReceiveMessageWorker
+import sys
 '''
+
 The RequestHandler class for our server.
 
 It is instantiated once per connection to the server, and must
 override the handle() method to implement communication to the
 client.
 '''
-
+reload(sys) 
+sys.setdefaultencoding('utf-8') 
 class ClientHandler(SocketServer.BaseRequestHandler):
     def handle(self):
+	global onlineClients
             # Get a reference to the socket object
         self.connection = self.request
         # Get the remote ip adress of the socket
@@ -27,15 +30,12 @@ class ClientHandler(SocketServer.BaseRequestHandler):
         print('Client connected @' + self.ip + ':' + str(self.port))
         # Wait for data from the client
         while True:
-            print('Waiting for data')
             try:
                 data = self.connection.recv(1024)
                 # Check if the data exists
                 # (recv could have returned due to a disconnect)
                 if data:
-                    print(data.decode("utf-8"))
                     self.requestHandler(data)
-                    print data
                     # Return the string in uppercase
                     # self.connection.sendall(data.upper())
                 else:
@@ -53,88 +53,58 @@ class ClientHandler(SocketServer.BaseRequestHandler):
                 break
 
     def requestHandler(self, data):
-        #try:
         dict1 = json.loads(data.decode("utf-8"))
-        #print(dict1)
         if 'request' in dict1:
             request = dict1['request']
-            #print('Request: ' + request)
             '''
 if request in self.requestTypes:
 print(request + ' is in requestTypes')
 self.requestTypes[request](dict1)
 '''
             if request == 'login':
-                #if 'username' in dict1.keys():
-                print("login!")
-                # print(dict1['username'])
                 self.handleLoginRequest(dict1)
             elif request == 'message':
-                print("New message!")
                 self.handleMessageRequest(dict1)
             elif request == 'logout':
-                print("logout!")
                 self.handleLogoutRequest()
-
-        #except:
-            #data = json.dumps({'response': 'login', 'error': 'Something is wrong!', 'username': 'jau'})
-            #self.connection.sendall(data)
-         # print('Invalid request')
-            
     def handleLoginRequest(self, dict1):
-        #print(dict1)
+	global onlineClients
         global messages
         if 'username' in dict1:
-            print('username: ' + dict1['username'])
             username = dict1['username']
             valUser = self.validUsername(username)
-            print("Valuser = ", valUser)
             if valUser == 1:
-                print "Log before sending"
-                print messages
                 data = json.dumps({'response': 'login', 'username': username, 'messages': messages})
-                print data
-                print("add client!")
-                onlineClients[username] = self.connection
-                print(onlineClients.keys())
+		msg = json.dumps({'response': 'message','message': 'User '+username+' logged in.'})
+                toLog = 'User ' + username +' logged in.' + '\n'
+                messages += toLog
                 for conn in onlineClients.values():
-                    conn.sendall(data.encode())
+                    conn.sendall(msg.encode())
+                onlineClients[username] = self.connection
             elif valUser == 0:
                 data = json.dumps({'response': 'login', 'error': 'Invalid username!', 'username': username})
-                self.connection.sendall(data.encode())
             else:
                 data = json.dumps({'response': 'login', 'error': 'Name already taken!', 'username': username})
-                self.connection.sendall(data.encode())
-            print("send!")
+            self.connection.sendall(data.encode())
         return
 
     def handleMessageRequest(self, dict1):
+	global onlineClients
         global messages
         if self.checkIfLoggedIn() != '$NotInOnlineList$':
-            #print("Logged in!")
             if 'message' in dict1:
-                print("Message is:"+ dict1['message'])
-                msg = json.dumps({'response': 'message','message':dict1['message']})
-                print(msg)
-                ######TROUBLE
-                print "Log before inserting"
-                print messages
-                toLog = dict1['message'] + '\n'
+		user = self.checkIfLoggedIn()
+		msg = json.dumps({'response': 'message', 'message': user+': '+dict1['message']})
+		toLog = user+': '+dict1['message'] + '\n'
                 messages += toLog
-                print messages
-                print "Log after inserting"
-                print messages
-                ######
-                print "HERE!"
                 for conn in onlineClients.values():
-                    print "Here again"
-                    print(conn)
                     conn.sendall(msg.encode())
         else:
             msg = json.dumps({'response': 'message', 'error': 'You are not logged in!'})
             self.connection.sendall(msg.encode())
     
     def checkIfLoggedIn(self):
+	global onlineClients
         for k, v in onlineClients.items():
             if v:
                 if self.connection == v:
@@ -143,21 +113,28 @@ self.requestTypes[request](dict1)
 
 
     def handleLogoutRequest(self):
+	global onlineClients
+	global message
         user = self.checkIfLoggedIn()
         if user != '$NotInOnlineList$':
-            msg = json.dumps({'response': 'logout', 'username': user})
-            del onlineClients[user]
-            print('User ' + user + ' deleted!')
+            msg = json.dumps({'response': 'logout', 'username': user+'1'})
+	    print(onlineClients.keys())
+	    print(msg)
+	    self.connection.sendall(msg.encode())
+            data = json.dumps({'response': 'message', 'message': 'User '+user+' logged out.\n'})
+            toLog = 'User ' + username +' logged out.' + '\n'
+            messages += toLog
             print(onlineClients.keys())
             for conn in onlineClients.values():
-                conn.sendall(msg.encode())
+               conn.sendall(data.encode())
+            del onlineClients[connKey]
         else:
-            msg = json.dumps({'response': 'logout','error': 'Not logged in!', 'username': user})
+            msg = json.dumps({'response': 'logout','error': 'Not logged in!', 'username': user+'\n'})
             self.connection.sendall(msg.encode())
 
-
     def validUsername(self, username):
-        if re.match(r'\w+$', username):
+	global onlineClients
+        if re.match(r'\w+$', username,re.UNICODE):
             # valid username! see: http://docs.python.org/2/library/re.html#search-vs-match [ctrl] + f: When the LOCALE and UNICODE flags are not specified, matches any alphanumeric character and the underscore;
                 if username not in onlineClients:
                     #username not taken, return true!
