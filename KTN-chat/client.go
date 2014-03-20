@@ -11,7 +11,7 @@ import(
 	"strings"
 )
 const (
-	RECV_BUF_LEN = 1024
+	RECV_BUF_LEN =2048 
 )
 const (
 	login 		= "login"
@@ -23,11 +23,10 @@ const (
 	messages 	= "messages"
 	request 	= "request"
 )
-
 func main()(){
-	serverAddr, _ := net.ResolveTCPAddr("tcp", "192.168.1.4:9999")
+	ip:="129.241.187.150"// "78.91.6.100"//"localhost" 192.168.1
+	serverAddr, _ := net.ResolveTCPAddr("tcp",ip+ ":9999")
 	con, err := net.DialTCP("tcp", nil, serverAddr);
-	fmt.Printf("Connected to server. \n")
 	if err != nil{
 		log.Printf("Error: %v",err)
 		os.Exit(1)
@@ -42,13 +41,16 @@ func main()(){
 			rlen,err := con.Read(buf2)
 			if err != nil {
 				fmt.Printf("Error: %v", err)
-	        }
-			err =json.Unmarshal(buf2[:rlen],&msgIn)
-			if err != nil{
-				log.Printf("Error: %v",err)
 				os.Exit(1)
-			}else{
-				printToScreen(msgIn)
+			}
+			if rlen >0{
+				err =json.Unmarshal(buf2[:rlen],&msgIn)
+				if err != nil{
+					log.Printf("Error: %v",err)
+					os.Exit(1)
+				}else{
+					printToScreen(msgIn)
+				}
 			}
 		}
 	}()
@@ -66,7 +68,6 @@ func main()(){
 func getInputFromUser() (msg map[string]string){
 	reader := bufio.NewReader(os.Stdin)
 	var fromUser string
-	fmt.Printf(": ")
     	fromUser, err := reader.ReadString('\r')
 	fromUser = strings.TrimSuffix(fromUser,"\r")
 	fromUser = strings.TrimPrefix(fromUser,"\n")
@@ -126,6 +127,3 @@ func printToScreen(msgIn map[string] interface{}){
 		}
 	}
 }
-					
-					
-			

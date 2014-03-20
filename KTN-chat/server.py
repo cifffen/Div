@@ -20,6 +20,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8') 
 class ClientHandler(SocketServer.BaseRequestHandler):
     def handle(self):
+	global onlineClients
             # Get a reference to the socket object
         self.connection = self.request
         # Get the remote ip adress of the socket
@@ -67,14 +68,19 @@ self.requestTypes[request](dict1)
             elif request == 'logout':
                 self.handleLogoutRequest()
     def handleLoginRequest(self, dict1):
+	global onlineClients
         global messages
         if 'username' in dict1:
             username = dict1['username']
             valUser = self.validUsername(username)
             if valUser == 1:
                 data = json.dumps({'response': 'login', 'username': username, 'messages': messages})
+		msg = json.dumps({'response': 'message','message': 'User '+username+' logged in.'})
+                toLog = 'User ' + username +' logged in.' + '\n'
+                messages += toLog
+                for conn in onlineClients.values():
+                    conn.sendall(msg.encode())
                 onlineClients[username] = self.connection
-                print(onlineClients.keys())
             elif valUser == 0:
                 data = json.dumps({'response': 'login', 'error': 'Invalid username!', 'username': username})
             else:
@@ -83,11 +89,13 @@ self.requestTypes[request](dict1)
         return
 
     def handleMessageRequest(self, dict1):
+	global onlineClients
         global messages
         if self.checkIfLoggedIn() != '$NotInOnlineList$':
             if 'message' in dict1:
-                msg = json.dumps({'response': 'message','message':dict1['message']})
-                toLog = dict1['message'] + '\n'
+		user = self.checkIfLoggedIn()
+		msg = json.dumps({'response': 'message', 'message': user+': '+dict1['message']})
+		toLog = user+': '+dict1['message'] + '\n'
                 messages += toLog
                 for conn in onlineClients.values():
                     conn.sendall(msg.encode())
@@ -96,6 +104,7 @@ self.requestTypes[request](dict1)
             self.connection.sendall(msg.encode())
     
     def checkIfLoggedIn(self):
+	global onlineClients
         for k, v in onlineClients.items():
             if v:
                 if self.connection == v:
@@ -104,16 +113,27 @@ self.requestTypes[request](dict1)
 
 
     def handleLogoutRequest(self):
+	global onlineClients
+	global message
         user = self.checkIfLoggedIn()
         if user != '$NotInOnlineList$':
-            msg = json.dumps({'response': 'logout', 'username': user})
-            del onlineClients[user]
+            msg = json.dumps({'response': 'logout', 'username': user+'1'})
+	    print(onlineClients.keys())
+	    print(msg)
+	    self.connection.sendall(msg.encode())
+            data = json.dumps({'response': 'message', 'message': 'User '+user+' logged out.\n'})
+            toLog = 'User ' + username +' logged out.' + '\n'
+            messages += toLog
+            print(onlineClients.keys())
+            for conn in onlineClients.values():
+               conn.sendall(data.encode())
+            del onlineClients[connKey]
         else:
-            msg = json.dumps({'response': 'logout','error': 'Not logged in!', 'username': user})
-        self.connection.sendall(msg.encode())
-
+            msg = json.dumps({'response': 'logout','error': 'Not logged in!', 'username': user+'\n'})
+            self.connection.sendall(msg.encode())
 
     def validUsername(self, username):
+	global onlineClients
         if re.match(r'\w+$', username,re.UNICODE):
             # valid username! see: http://docs.python.org/2/library/re.html#search-vs-match [ctrl] + f: When the LOCALE and UNICODE flags are not specified, matches any alphanumeric character and the underscore;
                 if username not in onlineClients:
